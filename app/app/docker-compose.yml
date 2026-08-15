@@ -1,0 +1,16 @@
+services:
+  harness:
+    build: .
+    container_name: deepseek-harness
+
+    network_mode: host
+
+    restart: unless-stopped
+
+    volumes:
+      - ./harness-data:/root/.dsh
+      - ./harness-workspace:/workspace
+
+volumes:
+  harness-data:
+  harness-workspace:
