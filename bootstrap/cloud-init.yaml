@@ -4,8 +4,14 @@ package_update: true
 
 packages:
   - docker.io
+  - docker-compose-v2
+  - curl
+  - unzip
 
 runcmd:
   - systemctl enable docker
   - systemctl start docker
-  - docker run --name hello-world hello-world
+  - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+  - unzip -q /tmp/awscliv2.zip -d /tmp
+  - /tmp/aws/install
+  - rm -rf /tmp/aws /tmp/awscliv2.zip
