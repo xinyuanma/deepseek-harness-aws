@@ -7,11 +7,33 @@ packages:
   - docker-compose-v2
   - curl
   - unzip
+  - git
 
 runcmd:
   - systemctl enable docker
   - systemctl start docker
+
+    # Install AWS CLI v2
   - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
   - unzip -q /tmp/awscliv2.zip -d /tmp
   - /tmp/aws/install
   - rm -rf /tmp/aws /tmp/awscliv2.zip
+
+    # Deploy DeepSeek Harness application
+  - mkdir -p /opt/deepseek-harness-aws
+  - git clone https://github.com/xinyuanma/deepseek-harness-aws.git /opt/deepseek-harness-aws
+
+    # Fetch secret and start Harness
+  - |
+    export DEEPSEEK_API_KEY="$(
+      aws secretsmanager get-secret-value \
+        --secret-id deepseek-harness/deepseek-api-key \
+        --query SecretString \
+        --output text
+    )"
+
+    cd /opt/deepseek-harness-aws/app
+
+    docker compose up -d --build
+
+    unset DEEPSEEK_API_KEY
