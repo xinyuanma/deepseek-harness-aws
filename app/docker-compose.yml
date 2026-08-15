@@ -7,6 +7,9 @@ services:
 
     restart: unless-stopped
 
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+
     volumes:
       - ./harness-data:/root/.dsh
       - ./harness-workspace:/workspace
