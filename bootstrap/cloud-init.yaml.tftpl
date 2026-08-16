@@ -21,16 +21,31 @@ runcmd:
 
     # Deploy DeepSeek Harness application
   - mkdir -p /opt/deepseek-harness-aws
-  - git clone https://github.com/xinyuanma/deepseek-harness-aws.git /opt/deepseek-harness-aws
+  - git clone --branch ${repository_ref} --single-branch ${repository_url} /opt/deepseek-harness-aws
 
     # Fetch secret and start Harness
   - |
-    export DEEPSEEK_API_KEY="$(
-      aws secretsmanager get-secret-value \
-        --secret-id deepseek-harness/deepseek-api-key \
-        --query SecretString \
-        --output text
-    )"
+    set -e
+
+    for attempt in 1 2 3 4 5 6; do
+      if DEEPSEEK_API_KEY="$(
+        aws secretsmanager get-secret-value \
+          --secret-id ${secret_name} \
+          --query SecretString \
+          --output text
+      )"; then
+        export DEEPSEEK_API_KEY
+        break
+      fi
+
+      echo "Secret not available yet; retrying in 10 seconds..."
+      sleep 10
+    done
+
+    if [ -z "$${DEEPSEEK_API_KEY:-}" ]; then
+      echo "Failed to retrieve DeepSeek API key after retries."
+      exit 1
+    fi
 
     cd /opt/deepseek-harness-aws/app
 
