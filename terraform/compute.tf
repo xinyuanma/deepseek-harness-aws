@@ -15,9 +15,16 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "agent" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = "t3.small"
-  user_data                   = file("${path.module}/../bootstrap/cloud-init.yaml")
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.instance_type
+  user_data = templatefile(
+    "${path.module}/../bootstrap/cloud-init.yaml.tftpl",
+    {
+      repository_url = var.repository_url
+      repository_ref = var.repository_ref
+      secret_name    = var.secret_name
+    }
+  )
   user_data_replace_on_change = true
   subnet_id                   = aws_subnet.public.id
 
@@ -27,11 +34,16 @@ resource "aws_instance" "agent" {
 
   iam_instance_profile = aws_iam_instance_profile.ec2.name
 
+  depends_on = [
+    aws_iam_role_policy.deepseek_secret,
+    aws_iam_role_policy_attachment.ssm
+  ]
+
   associate_public_ip_address = true
 
   root_block_device {
     volume_type = "gp3"
-    volume_size = 20
+    volume_size = var.root_volume_size
     encrypted   = true
   }
 
