@@ -11,8 +11,8 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
 
     volumes:
-      - ./harness-data:/root/.dsh
-      - ./harness-workspace:/workspace
+      - /mnt/dsh-data/dsh:/root/.dsh
+      - /mnt/dsh-data/workspace:/workspace
 
 volumes:
   harness-data:
