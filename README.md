@@ -100,8 +100,6 @@ Availability Zone: eu-north-1b
 
 ### 3. Deploy the compute layer
 
-Return to the main Terraform directory:
-
 ```bash
 cd ..
 terraform init
@@ -116,8 +114,6 @@ The default EC2 instance type is `t3.small`.
 Terraform creates the compute infrastructure and attaches the persistent EBS volume. Cloud-init then installs the required software, clones this repository, mounts the persistent volume, builds the Docker image, and starts DeepSeek Harness.
 
 ### 4. Wait for bootstrap
-
-Terraform completing does not necessarily mean cloud-init has finished.
 
 Get the SSM command:
 
@@ -154,7 +150,7 @@ The Web UI is forwarded through AWS Systems Manager; no public inbound Web UI po
 
 For a normal first-time deployment, configure your DeepSeek API key in the DeepSeek Harness Web UI.
 
-If no usable API key exists in AWS Secrets Manager, bootstrap continues and Harness starts without one. You can then add the API key through the UI.
+If no usable API key exists in AWS Secrets Manager, bootstrap continues and Harness starts without one. You can then add the API key through the UI and start using DeepSeek Harness.
 
 ## Optional: Secrets Manager API key injection
 
@@ -179,9 +175,9 @@ Docker mounts:
 /mnt/dsh-data/workspace -> /workspace
 ```
 
-The persistent EBS volume therefore stores DSH state, including conversations/settings, as well as workspace data.
+The persistent EBS volume stores DSH state, including conversations/settings, as well as workspace data.
 
-The persistence lifecycle has been tested end to end by creating a real conversation, destroying the entire compute layer, rebuilding it from scratch, reattaching the existing EBS volume, and confirming that the conversation was restored.
+The persistence lifecycle has been tested end to end by creating a real DSH conversation, destroying the entire compute layer, rebuilding it from scratch, reattaching the existing EBS volume, and confirming that the original conversation was restored.
 
 ## Destroy and Recreate Compute
 
@@ -193,9 +189,7 @@ terraform plan -destroy
 terraform destroy
 ```
 
-This removes the compute lifecycle domain, including EC2, the EBS attachment, networking, security group, and compute IAM resources.
-
-It does **not** destroy resources managed by `terraform/persistent/`.
+This removes the compute lifecycle domain but does **not** destroy resources managed by `terraform/persistent/`.
 
 Later, recreate compute with:
 
@@ -228,44 +222,33 @@ Do not destroy the persistent layer if you expect conversations or workspace dat
 
 ## Useful Commands
 
-Open an SSM shell:
-
 ```bash
+# SSM shell
 terraform output -raw ssm_shell_command
-```
 
-Open the Web UI tunnel:
-
-```bash
+# Web UI tunnel
 terraform output -raw web_ui_forward_command
-```
 
-Check bootstrap:
-
-```bash
+# Bootstrap status
 sudo cloud-init status --long
 sudo cloud-init status --wait
-```
 
-Check Harness:
-
-```bash
+# Container status
 sudo docker ps
-```
 
-Check persistent storage:
-
-```bash
+# Persistent storage
 lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS,SERIAL
 df -h /mnt/dsh-data
 sudo du -sh /mnt/dsh-data/dsh
+
+# Bootstrap logs
+sudo tail -n 100 /var/log/cloud-init-output.log
 ```
 
 Confirm Docker mounts:
 
 ```bash
-sudo docker inspect deepseek-harness \
-  --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
+sudo docker inspect deepseek-harness   --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
 ```
 
 Expected:
@@ -275,27 +258,55 @@ Expected:
 /mnt/dsh-data/workspace -> /workspace
 ```
 
-Inspect bootstrap logs:
-
-```bash
-sudo tail -n 100 /var/log/cloud-init-output.log
-```
-
 ## Troubleshooting
 
 ### Terraform cannot find AWS credentials
 
-If Terraform reports `No valid credential sources found`, verify:
+First verify:
 
 ```bash
 aws sts get-caller-identity
 ```
 
-Reauthenticate your AWS CLI session if necessary.
+If necessary, reauthenticate your AWS CLI session.
+
+If you authenticated using the newer `aws login` flow and the AWS CLI works but Terraform reports:
+
+```text
+No valid credential sources found
+failed to refresh cached credentials, load login token: token file not found
+```
+
+create a compatibility profile using `credential_process`. Replace `YOUR_LOGIN_PROFILE` with the profile used for `aws login`:
+
+```bash
+aws configure set credential_process   "aws configure export-credentials --profile YOUR_LOGIN_PROFILE --format process"   --profile terraform
+
+aws configure set region eu-north-1 --profile terraform
+```
+
+On macOS/Linux:
+
+```bash
+export AWS_PROFILE=terraform
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:AWS_PROFILE="terraform"
+```
+
+Then verify and retry:
+
+```bash
+aws sts get-caller-identity
+terraform plan
+```
 
 ### SSM does not connect immediately
 
-The instance may still be starting and registering with Systems Manager. Wait briefly and retry the command from:
+The instance may still be starting and registering with Systems Manager. Wait briefly and retry:
 
 ```bash
 terraform output -raw ssm_shell_command
@@ -303,15 +314,12 @@ terraform output -raw ssm_shell_command
 
 ### `docker ps` is empty immediately after `terraform apply`
 
-Terraform can finish creating EC2 before cloud-init finishes installation and Docker startup.
-
-Run:
+Terraform can finish creating EC2 before cloud-init finishes installation and Docker startup:
 
 ```bash
 sudo cloud-init status --wait
+sudo docker ps
 ```
-
-then check Docker again.
 
 ### API key is missing
 
@@ -327,10 +335,10 @@ This deployment avoids exposing the Harness Web UI or SSH through inbound Intern
 
 Additional characteristics:
 
-- encrypted persistent EBS storage;
-- IAM-based EC2 access to the configured Secrets Manager secret;
-- API keys are not baked into the Docker image;
-- Terraform state, `.tfvars`, and `.env` files are ignored by Git.
+- encrypted persistent EBS storage
+- IAM-based EC2 access to the configured Secrets Manager secret
+- API keys are not baked into the Docker image
+- Terraform state, `.tfvars`, and `.env` files are ignored by Git
 
 Always review Terraform plans before applying or destroying infrastructure.
 
@@ -351,22 +359,34 @@ deepseek-harness-aws/
 │   │   ├── variables.tf
 │   │   ├── storage.tf
 │   │   ├── secrets.tf
-│   │   └── outputs.tf
+│   │   ├── outputs.tf
+│   │   └── terraform.tfvars.example
 │   ├── compute.tf
 │   ├── iam.tf
 │   ├── network.tf
 │   ├── outputs.tf
 │   ├── providers.tf
 │   └── variables.tf
+├── LICENSE
 └── README.md
 ```
 
 ## Project Status
 
-The core deployment and persistence lifecycle has been validated end to end on AWS, including provisioning, EC2 bootstrap, Docker startup, SSM access, Web UI forwarding, persistent EBS mounting, optional Secrets Manager injection, and conversation recovery after full compute destruction and recreation.
+The core deployment and persistence lifecycle has been validated end to end on AWS.
 
-The project is being prepared for its first public release.
+A clean-room deployment was completed using a fresh Git clone and a separate AWS account with no pre-existing Terraform state, EBS volume, or Secrets Manager value. The validated flow included:
+
+- persistent infrastructure provisioning
+- compute infrastructure provisioning
+- EC2 bootstrap
+- first-time EBS formatting and mounting
+- startup without a preconfigured API key
+- SSM shell access and Web UI port forwarding
+- API key configuration through the Web UI
+- successful DeepSeek inference
+- conversation persistence across compute destruction and recreation
 
 ## License
 
-A license will be added before the first public release.
+This project is licensed under the MIT License. See `LICENSE` for details.
