@@ -1,0 +1,12 @@
+# AWS region for persistent resources
+aws_region = "eu-north-1"
+
+# IMPORTANT:
+# Must match the availability_zone used by the compute layer.
+availability_zone = "eu-north-1b"
+
+# Persistent EBS volume size in GiB
+data_volume_size = 20
+
+# AWS Secrets Manager secret used for optional API key injection
+secret_name = "deepseek-harness/deepseek-api-key"
