@@ -38,3 +38,9 @@ variable "secret_name" {
   type        = string
   default     = "deepseek-harness/deepseek-api-key"
 }
+
+variable "availability_zone" {
+  description = "Availability Zone used by the EC2 subnet and persistent EBS volume"
+  type        = string
+  default     = "eu-north-1b"
+}

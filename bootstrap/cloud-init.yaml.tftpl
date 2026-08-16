@@ -27,28 +27,46 @@ runcmd:
   - |
     set -e
 
-    for attempt in 1 2 3 4 5 6; do
-      if DEEPSEEK_API_KEY="$(
-        aws secretsmanager get-secret-value \
-          --secret-id ${secret_name} \
-          --query SecretString \
-          --output text
-      )"; then
-        export DEEPSEEK_API_KEY
+    VOLUME_ID="${data_volume_id}"
+    VOLUME_SERIAL="$(printf '%s' "$VOLUME_ID" | tr -d '-')"
+    DEVICE=""
+
+    for attempt in $(seq 1 30); do
+      DEVICE="$(
+        lsblk -dn -o NAME,SERIAL |
+        awk -v serial="$VOLUME_SERIAL" '$2 == serial { print "/dev/" $1; exit }'
+      )"
+
+      if [ -n "$DEVICE" ]; then
+        echo "Persistent EBS volume found at $DEVICE"
         break
       fi
 
-      echo "Secret not available yet; retrying in 10 seconds..."
-      sleep 10
+      echo "Persistent EBS volume not attached yet; retrying in 5 seconds..."
+      sleep 5
     done
 
-    if [ -z "$${DEEPSEEK_API_KEY:-}" ]; then
-      echo "Failed to retrieve DeepSeek API key after retries."
+    if [ -z "$DEVICE" ]; then
+      echo "Failed to find persistent EBS volume."
       exit 1
     fi
 
-    cd /opt/deepseek-harness-aws/app
+    if ! blkid "$DEVICE" >/dev/null 2>&1; then
+      echo "No filesystem found; formatting persistent volume as ext4."
+      mkfs.ext4 -F "$DEVICE"
+    else
+      echo "Existing filesystem found; skipping format."
+    fi
 
-    docker compose up -d --build
+    mkdir -p /mnt/dsh-data
 
-    unset DEEPSEEK_API_KEY
+    UUID="$(blkid -s UUID -o value "$DEVICE")"
+
+    if ! grep -q "UUID=$UUID " /etc/fstab; then
+      echo "UUID=$UUID /mnt/dsh-data ext4 defaults,nofail 0 2" >> /etc/fstab
+    fi
+
+    mount -a
+
+    mkdir -p /mnt/dsh-data/dsh
+    mkdir -p /mnt/dsh-data/workspace
