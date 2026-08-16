@@ -20,3 +20,9 @@ variable "data_volume_size" {
     error_message = "data_volume_size must be at least 8 GiB."
   }
 }
+
+variable "secret_name" {
+  description = "Name of the AWS Secrets Manager secret containing the DeepSeek API key"
+  type        = string
+  default     = "deepseek-harness/deepseek-api-key"
+}

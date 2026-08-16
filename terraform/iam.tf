@@ -45,7 +45,7 @@ resource "aws_iam_role_policy" "deepseek_secret" {
         Action = [
           "Secretsmanager:GetSecretValue"
         ]
-        Resource = aws_secretsmanager_secret.deepseek_api_key.arn
+        Resource = data.terraform_remote_state.persistent.outputs.secret_arn
       }
     ]
   })

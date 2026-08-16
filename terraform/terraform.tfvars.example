@@ -7,6 +7,3 @@ availability_zone = "eu-north-1b"
 # Source code deployed and built on EC2
 repository_url = "https://github.com/xinyuanma/deepseek-harness-aws.git"
 repository_ref = "main"
-
-# AWS Secrets Manager
-secret_name = "deepseek-harness/deepseek-api-key"

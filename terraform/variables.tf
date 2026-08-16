@@ -33,12 +33,6 @@ variable "repository_ref" {
   default     = "main"
 }
 
-variable "secret_name" {
-  description = "AWS Secrets Manager secret containing the DeepSeek API key"
-  type        = string
-  default     = "deepseek-harness/deepseek-api-key"
-}
-
 variable "availability_zone" {
   description = "Availability Zone used by the EC2 subnet and persistent EBS volume"
   type        = string

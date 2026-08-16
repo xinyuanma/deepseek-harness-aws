@@ -22,7 +22,7 @@ resource "aws_instance" "agent" {
     {
       repository_url = var.repository_url
       repository_ref = var.repository_ref
-      secret_name    = var.secret_name
+      secret_name    = data.terraform_remote_state.persistent.outputs.secret_name
       data_volume_id = data.terraform_remote_state.persistent.outputs.data_volume_id
     }
   )
