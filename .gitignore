@@ -19,3 +19,9 @@
 
 # macOS
 .DS_Store
+
+# Node dependencies
+sdk-smoke/node_modules/
+
+# DSH local sessions
+sdk-smoke/.sessions/

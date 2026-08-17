@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 
-ARG DSH_VERSION=0.1.0-rc.6
+ARG DSH_VERSION=0.1.0-rc.7
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
