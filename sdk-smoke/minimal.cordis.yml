@@ -1,5 +1,5 @@
 - id: sdk-jsonrpc-server
-  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+  name: '@dsh-aws/resume-jsonrpc-server'
   config:
     maxTokensAsSuccess: false
 
