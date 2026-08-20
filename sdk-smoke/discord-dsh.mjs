@@ -3,6 +3,8 @@ import {
   GatewayIntentBits,
 } from 'discord.js'
 
+import { enqueueSession } from './session-queue.mjs'
+import { getRunError } from './dsh-result.mjs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
@@ -48,30 +50,56 @@ client.once('clientReady', () => {
 })
 
 client.on('messageCreate', async (message) => {
-  // Ignore messages sent by bots, including ourselves
   if (message.author.bot) return
 
   console.log(
     `[message] ${message.author.username}: ${message.content}`
   )
 
+  const sessionId = `discord-${message.channelId}`
+
   try {
-    await message.channel.sendTyping()
+    await enqueueSession(sessionId, async () => {
+      await message.channel.sendTyping()
 
-    const sessionId = `discord-${message.channelId}`
+      const result = await harness.run(
+        message.content,
+        {
+          sessionId,
+        }
+      )
 
-    const result = await harness.run(
-      message.content,
-      {
-        sessionId,
+      const runError = getRunError(result)
+
+      if (runError) {
+        console.error(
+          `[DSH error] ${runError.code}: ${runError.message}`
+        )
+
+        await message.reply(
+          `DSH failed: ${runError.code}`
+        )
+
+        return
       }
-    )
 
-    console.log(`[DSH session] ${result.sessionId}`)
-    console.log(`[DSH response] ${result.finalResponse}`)
+      if (!result.finalResponse?.trim()) {
+        console.error(
+          '[DSH error] Empty final response without explicit turn error'
+        )
 
-    await message.reply(result.finalResponse)
+        await message.reply(
+          'DSH finished without returning a response.'
+        )
 
+        return
+      }
+
+      console.log(`[DSH session] ${result.sessionId}`)
+      console.log(`[DSH response] ${result.finalResponse}`)
+
+      await message.reply(result.finalResponse)
+    })
   } catch (error) {
     console.error('DSH error:', error)
 
@@ -79,6 +107,37 @@ client.on('messageCreate', async (message) => {
       'DSH encountered an error while processing your message.'
     )
   }
+})
+
+// ---------- Graceful shutdown ----------
+
+let shuttingDown = false
+
+async function shutdown(signal) {
+  if (shuttingDown) return
+  shuttingDown = true
+
+  console.log(`[shutdown] Received ${signal}`)
+
+  try {
+    client.destroy()
+
+    await harness.close()
+
+    console.log('[shutdown] DSH closed cleanly')
+  } catch (error) {
+    console.error('[shutdown] Error during shutdown:', error)
+  } finally {
+    process.exit(signal === 'SIGINT' ? 130 : 0)
+  }
+}
+
+process.once('SIGINT', () => {
+  void shutdown('SIGINT')
+})
+
+process.once('SIGTERM', () => {
+  void shutdown('SIGTERM')
 })
 
 
