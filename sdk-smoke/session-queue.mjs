@@ -5,17 +5,19 @@ export function enqueueSession(sessionId, task) {
 
   const current = previous
     .catch(() => {
-      // 前一个任务失败也不能阻塞后续任务
+      // Previous task failure must not block later tasks.
     })
     .then(task)
 
   queues.set(sessionId, current)
 
-  current.finally(() => {
+  const cleanup = () => {
     if (queues.get(sessionId) === current) {
       queues.delete(sessionId)
     }
-  })
+  }
+
+  void current.then(cleanup, cleanup)
 
   return current
 }

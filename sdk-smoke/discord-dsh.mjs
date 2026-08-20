@@ -3,6 +3,18 @@ import {
   GatewayIntentBits,
 } from 'discord.js'
 
+import { classifyDiscordInput } from './discord-input.mjs'
+import {
+  withTyping,
+} from './typing-indicator.mjs'
+import {
+  addProcessingReaction,
+  markSuccess,
+  markFailure,
+} from './discord-reactions.mjs'  
+import {
+  sendDiscordResponse,
+} from './discord-output.mjs'
 import { enqueueSession } from './session-queue.mjs'
 import { getRunError } from './dsh-result.mjs'
 import { createRequire } from 'node:module'
@@ -52,59 +64,91 @@ client.once('clientReady', () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return
 
-  console.log(
-    `[message] ${message.author.username}: ${message.content}`
-  )
+  const discordInput = classifyDiscordInput(message)
 
-  const sessionId = `discord-${message.channelId}`
+  if (discordInput.type === 'empty') {
+    return
+  }
+
+  if (discordInput.type === 'attachment-only') {
+    await message.reply(
+      'Attachments are not supported yet. Please send a text message.',
+    )
+
+    return
+  }
+
+  const input = discordInput.input
+
+  const processingReaction =
+    await addProcessingReaction(message)
+
+  const sessionId =
+    `discord-${message.channelId}`
 
   try {
     await enqueueSession(sessionId, async () => {
       await message.channel.sendTyping()
 
-      const result = await harness.run(
-        message.content,
-        {
-          sessionId,
-        }
+      const result = await withTyping(
+        message.channel,
+        () =>
+          harness.run(
+            input,
+            {
+              sessionId,
+            },
+          ),
       )
 
       const runError = getRunError(result)
 
       if (runError) {
-        console.error(
-          `[DSH error] ${runError.code}: ${runError.message}`
+        await markFailure(
+          message,
+          processingReaction,
         )
 
         await message.reply(
-          `DSH failed: ${runError.code}`
+          `DSH failed: ${runError.code}`,
         )
 
         return
       }
 
       if (!result.finalResponse?.trim()) {
-        console.error(
-          '[DSH error] Empty final response without explicit turn error'
+        await markFailure(
+          message,
+          processingReaction,
         )
 
         await message.reply(
-          'DSH finished without returning a response.'
+          'DSH finished without returning a response.',
         )
 
         return
       }
 
-      console.log(`[DSH session] ${result.sessionId}`)
-      console.log(`[DSH response] ${result.finalResponse}`)
+      await sendDiscordResponse(
+        message,
+        result.finalResponse,
+      )
 
-      await message.reply(result.finalResponse)
+      await markSuccess(
+        message,
+        processingReaction,
+      )
     })
   } catch (error) {
     console.error('DSH error:', error)
 
+    await markFailure(
+      message,
+      processingReaction,
+    )
+
     await message.reply(
-      'DSH encountered an error while processing your message.'
+      'DSH encountered an error while processing your message.',
     )
   }
 })
