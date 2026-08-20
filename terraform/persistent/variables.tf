@@ -26,3 +26,9 @@ variable "secret_name" {
   type        = string
   default     = "deepseek-harness/deepseek-api-key"
 }
+
+variable "discord_secret_name" {
+  description = "AWS Secrets Manager secret name for the Discord bot token"
+  type        = string
+  default     = "deepseek-harness/discord-bot-token"
+}

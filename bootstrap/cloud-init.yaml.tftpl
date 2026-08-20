@@ -70,6 +70,7 @@ runcmd:
 
     mkdir -p /mnt/dsh-data/dsh
     mkdir -p /mnt/dsh-data/workspace
+    mkdir -p /mnt/dsh-data/discord-sessions
 
     # Fetch DeepSeek API key
     DEEPSEEK_API_KEY=""
@@ -97,7 +98,36 @@ runcmd:
       echo "Configure your API key in the Web UI after startup."
     fi
 
+    # Fetch Discord bot token
+    DISCORD_BOT_TOKEN=""
+
+    for attempt in 1 2 3 4 5 6; do
+      if DISCORD_BOT_TOKEN="$(
+        aws secretsmanager get-secret-value \
+          --secret-id ${discord_secret_name} \
+          --query SecretString \
+          --output text 2>/dev/null
+      )"; then
+        break
+      fi
+
+      echo "Discord bot token not available yet; retrying in 10 seconds..."
+      sleep 10
+    done
+
+    if [ -n "$${DISCORD_BOT_TOKEN:-}" ]; then
+      echo "Discord bot token found in Secrets Manager."
+      export DISCORD_BOT_TOKEN
+    else
+      echo "No Discord bot token found in Secrets Manager."
+      echo "Discord integration will not be able to authenticate."
+    fi
+
+    export DSH_DATA_ROOT=/mnt/dsh-data
+
     cd /opt/deepseek-harness-aws/app
     docker compose up -d --build
 
     unset DEEPSEEK_API_KEY
+    unset DISCORD_BOT_TOKEN
+    unset DSH_DATA_ROOT

@@ -33,7 +33,7 @@ resource "aws_iam_instance_profile" "ec2" {
 }
 
 resource "aws_iam_role_policy" "deepseek_secret" {
-  name = "deepseek-harness-read-secret"
+  name = "deepseek-harness-read-secrets"
   role = aws_iam_role.ec2.id
 
   policy = jsonencode({
@@ -43,9 +43,12 @@ resource "aws_iam_role_policy" "deepseek_secret" {
       {
         Effect = "Allow"
         Action = [
-          "Secretsmanager:GetSecretValue"
+          "secretsmanager:GetSecretValue"
         ]
-        Resource = data.terraform_remote_state.persistent.outputs.secret_arn
+        Resource = [
+          data.terraform_remote_state.persistent.outputs.secret_arn,
+          data.terraform_remote_state.persistent.outputs.discord_secret_arn
+        ]
       }
     ]
   })

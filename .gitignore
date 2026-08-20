@@ -25,3 +25,9 @@ sdk-smoke/node_modules/
 
 # DSH local sessions
 sdk-smoke/.sessions/
+
+# Local data
+.local-data/
+
+node_modules/
+.sessions/

@@ -20,10 +20,11 @@ resource "aws_instance" "agent" {
   user_data = templatefile(
     "${path.module}/../bootstrap/cloud-init.yaml.tftpl",
     {
-      repository_url = var.repository_url
-      repository_ref = var.repository_ref
-      secret_name    = data.terraform_remote_state.persistent.outputs.secret_name
-      data_volume_id = data.terraform_remote_state.persistent.outputs.data_volume_id
+      repository_url      = var.repository_url
+      repository_ref      = var.repository_ref
+      secret_name         = data.terraform_remote_state.persistent.outputs.secret_name
+      discord_secret_name = data.terraform_remote_state.persistent.outputs.discord_secret_name
+      data_volume_id      = data.terraform_remote_state.persistent.outputs.data_volume_id
     }
   )
   user_data_replace_on_change = true

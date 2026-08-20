@@ -1,0 +1,8 @@
+node_modules
+.sessions
+.env
+*.log
+.git
+.gitignore
+Dockerfile*
+*.test.mjs

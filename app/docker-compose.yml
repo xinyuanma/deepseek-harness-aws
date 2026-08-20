@@ -8,12 +8,24 @@ services:
     restart: unless-stopped
 
     environment:
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
 
     volumes:
-      - /mnt/dsh-data/dsh:/root/.dsh
-      - /mnt/dsh-data/workspace:/workspace
+      - ${DSH_DATA_ROOT:-/mnt/dsh-data}/dsh:/root/.dsh
+      - ${DSH_DATA_ROOT:-/mnt/dsh-data}/workspace:/workspace
 
-volumes:
-  harness-data:
-  harness-workspace:
+  discord:
+    build:
+      context: ../integrations/discord
+    container_name: deepseek-harness-discord
+
+    restart: unless-stopped
+
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      DSH_MODEL: ${DSH_MODEL:-deepseek-v4-flash}
+
+    volumes:
+      - ${DSH_DATA_ROOT:-/mnt/dsh-data}/discord-sessions:/data/sessions
+      - ${DSH_DATA_ROOT:-/mnt/dsh-data}/workspace:/workspace
